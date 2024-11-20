@@ -14,7 +14,7 @@ use std::ffi::OsString;
 #[cfg(not(any(target_os = "redox", target_os = "solaris")))]
 use std::ops::{Deref, DerefMut};
 use std::os::unix::ffi::OsStringExt;
-#[cfg(not(any(target_os = "redox", target_os = "solaris")))]
+#[cfg(not(target_os = "redox"))]
 use std::os::unix::io::OwnedFd;
 use std::os::unix::io::RawFd;
 #[cfg(any(
@@ -140,8 +140,8 @@ libc_bitflags!(
         /// Try to minimize cache effects of the I/O for this file.
         #[cfg(any(
             freebsdlike,
+            illumos,
             linux_android,
-            solarish,
             target_os = "netbsd"
         ))]
         O_DIRECT;

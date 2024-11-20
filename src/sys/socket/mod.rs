@@ -1679,12 +1679,9 @@ impl ControlMessage<'_> {
 /// let localhost = SockaddrIn::from_str("1.2.3.4:8080").unwrap();
 /// let fd = socket(AddressFamily::Inet, SockType::Datagram, SockFlag::empty(),
 ///     None).unwrap();
-/// let (r, w) = pipe().unwrap();
 ///
 /// let iov = [IoSlice::new(b"hello")];
-/// let fds = [r.as_raw_fd()];
-/// let cmsg = ControlMessage::ScmRights(&fds);
-/// sendmsg(fd.as_raw_fd(), &iov, &[cmsg], MsgFlags::empty(), Some(&localhost)).unwrap();
+/// sendmsg(fd.as_raw_fd(), &iov, &[], MsgFlags::empty(), Some(&localhost)).unwrap();
 /// ```
 pub fn sendmsg<S>(fd: RawFd, iov: &[IoSlice<'_>], cmsgs: &[ControlMessage],
                flags: MsgFlags, addr: Option<&S>) -> Result<usize>

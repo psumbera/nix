@@ -20,6 +20,9 @@ pub extern "C" fn handle_sigalarm(raw_signal: libc::c_int) {
 }
 
 #[test]
+// Solaris: The timer_create(3C) function requires the PRIV_PROC_CLOCK_HIGHRES
+// privilege to create a timer using the high-resolution system clock.
+#[cfg(not(target_os = "solaris"))]
 fn alarm_fires() {
     // Avoid interfering with other signal using tests by taking a mutex shared
     // among other tests in this crate.

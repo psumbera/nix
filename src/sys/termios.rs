@@ -418,7 +418,7 @@ libc_enum! {
         VEOL,
         VEOL2,
         VERASE,
-        #[cfg(any(freebsdlike, solarish))]
+        #[cfg(any(freebsdlike, illumos))]
         VERASE2,
         VINTR,
         VKILL,
@@ -431,7 +431,7 @@ libc_enum! {
         #[cfg(not(target_os = "haiku"))]
         VREPRINT,
         VSTART,
-        #[cfg(any(bsd, solarish))]
+        #[cfg(any(bsd, illumos))]
         VSTATUS,
         VSTOP,
         VSUSP,
@@ -463,6 +463,10 @@ impl SpecialCharacterIndices {
 pub use libc::NCCS;
 #[cfg(any(linux_android, target_os = "aix", bsd))]
 pub use libc::_POSIX_VDISABLE;
+// Solaris can use libc::_POSIX_VDISABLE once following is pulled in:
+// https://github.com/rust-lang/libc/pull/4103
+#[cfg(target_os = "solaris")]
+pub const _POSIX_VDISABLE: u8 = 0;
 
 libc_bitflags! {
     /// Flags for configuring the input mode of a terminal
