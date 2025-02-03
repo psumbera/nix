@@ -5,9 +5,7 @@ use crate::sys::time::TimeVal;
 use crate::Result;
 use cfg_if::cfg_if;
 use libc::{self, c_int, c_void, socklen_t};
-use std::ffi::{CStr, CString, OsStr, OsString};
 use std::mem::{self, MaybeUninit};
-use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::{AsFd, AsRawFd};
 
 // Constants
@@ -1536,85 +1534,5 @@ impl<'a> Set<'a, usize> for SetUsize {
 
     fn ffi_len(&self) -> socklen_t {
         mem::size_of_val(&self.val) as socklen_t
-    }
-}
-
-/// Getter for a `OsString` value.
-struct GetOsString<T: AsMut<[u8]>> {
-    len: socklen_t,
-    val: MaybeUninit<T>,
-}
-
-impl<T: AsMut<[u8]>> Get<OsString> for GetOsString<T> {
-    fn uninit() -> Self {
-        GetOsString {
-            len: mem::size_of::<T>() as socklen_t,
-            val: MaybeUninit::uninit(),
-        }
-    }
-
-    fn ffi_ptr(&mut self) -> *mut c_void {
-        self.val.as_mut_ptr().cast()
-    }
-
-    fn ffi_len(&mut self) -> *mut socklen_t {
-        &mut self.len
-    }
-
-    unsafe fn assume_init(self) -> OsString {
-        let len = self.len as usize;
-        let mut v = unsafe { self.val.assume_init() };
-        OsStr::from_bytes(&v.as_mut()[0..len]).to_owned()
-    }
-}
-
-/// Setter for a `OsString` value.
-struct SetOsString<'a> {
-    val: &'a OsStr,
-}
-
-impl<'a> Set<'a, OsString> for SetOsString<'a> {
-    fn new(val: &'a OsString) -> SetOsString {
-        SetOsString {
-            val: val.as_os_str(),
-        }
-    }
-
-    fn ffi_ptr(&self) -> *const c_void {
-        self.val.as_bytes().as_ptr().cast()
-    }
-
-    fn ffi_len(&self) -> socklen_t {
-        self.val.len() as socklen_t
-    }
-}
-
-/// Getter for a `CString` value.
-struct GetCString<T: AsMut<[u8]>> {
-    len: socklen_t,
-    val: MaybeUninit<T>,
-}
-
-impl<T: AsMut<[u8]>> Get<CString> for GetCString<T> {
-    fn uninit() -> Self {
-        GetCString {
-            len: mem::size_of::<T>() as socklen_t,
-            val: MaybeUninit::uninit(),
-        }
-    }
-
-    fn ffi_ptr(&mut self) -> *mut c_void {
-        self.val.as_mut_ptr().cast()
-    }
-
-    fn ffi_len(&mut self) -> *mut socklen_t {
-        &mut self.len
-    }
-
-    unsafe fn assume_init(self) -> CString {
-        let mut v = unsafe { self.val.assume_init() };
-        CStr::from_bytes_until_nul(v.as_mut())
-            .expect("string should be null-terminated")
-            .to_owned()
     }
 }

@@ -223,7 +223,11 @@ fn test_sendfilev() {
     trailer_data
         .write_all(trailer_strings.concat().as_bytes())
         .unwrap();
-    let (mut rd, wr) = UnixStream::pair().unwrap();
+    // Create a TCP socket pair (listener and client)
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let mut rd = TcpStream::connect(addr).unwrap();
+    let (wr, _) = listener.accept().unwrap();
     let vec: &[SendfileVec] = &[
         SendfileVec::new(
             header_data.as_fd(),
@@ -244,7 +248,7 @@ fn test_sendfilev() {
 
     let (res, bytes_written) = sendfilev(&wr, vec);
     assert!(res.is_ok());
-    wr.shutdown(Shutdown::Both).unwrap();
+    wr.shutdown(Shutdown::Write).unwrap();
 
     // Prepare the expected result
     let expected_string = header_strings.concat()
