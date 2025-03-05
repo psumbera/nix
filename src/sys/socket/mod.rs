@@ -1436,6 +1436,7 @@ impl<'a> ControlMessage<'a> {
 /// sendmsg::<()>(fd1.as_raw_fd(), &iov, &[cmsg], MsgFlags::empty(), None).unwrap();
 /// ```
 /// When directing to a specific address, the generic type will be inferred.
+/// Note that SCM_RIGHTS ancillary data are valid only for AF_UNIX sockets on Solaris.
 /// ```
 /// # use nix::sys::socket::*;
 /// # use nix::unistd::pipe;
@@ -1450,6 +1451,7 @@ impl<'a> ControlMessage<'a> {
 /// let iov = [IoSlice::new(b"hello")];
 /// let fds = [r.as_raw_fd()];
 /// let cmsg = ControlMessage::ScmRights(&fds);
+/// #[cfg(not(target_os = "solaris"))]
 /// sendmsg(fd.as_raw_fd(), &iov, &[cmsg], MsgFlags::empty(), Some(&localhost)).unwrap();
 /// ```
 pub fn sendmsg<S>(fd: RawFd, iov: &[IoSlice<'_>], cmsgs: &[ControlMessage],
