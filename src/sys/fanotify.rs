@@ -419,8 +419,28 @@ impl AsFd for Fanotify {
     }
 }
 
+impl AsRawFd for Fanotify {
+    fn as_raw_fd(&self) -> RawFd
+    {
+        self.fd.as_raw_fd()
+    }
+}
+
 impl From<Fanotify> for OwnedFd {
     fn from(value: Fanotify) -> Self {
         value.fd
+    }
+}
+
+impl Fanotify {
+    /// Constructs a `Fanotify` wrapping an existing `OwnedFd`.
+    ///
+    /// # Safety
+    ///
+    /// `OwnedFd` is a valid `Fanotify`.
+    pub unsafe fn from_owned_fd(fd: OwnedFd) -> Self {
+        Self {
+            fd
+        }
     }
 }

@@ -64,6 +64,7 @@ libc_bitflags! {
         #[cfg(any(all(linux_android,
                       any(target_arch = "x86", target_arch = "x86_64")),
                   all(target_os = "linux", target_env = "musl", any(target_arch = "x86", target_arch = "x86_64")),
+                  all(target_os = "linux", target_env = "ohos", target_arch = "x86_64"),
                   all(target_os = "freebsd", target_pointer_width = "64")))]
         MAP_32BIT;
         /// Used for stacks; indicates to the kernel that the mapping should extend downward in memory.
@@ -205,6 +206,10 @@ libc_bitflags! {
         /// Place the mapping at exactly the address specified in `new_address`.
         #[cfg(target_os = "linux")]
         MREMAP_FIXED;
+        /// Works in conjunction with `MREMAP_MAYMOVE` but does not unmap `old_address`.
+        /// Note that, in this case, `old_size` and `new_size` must be the same.
+        #[cfg(target_os = "linux")]
+        MREMAP_DONTUNMAP;
         /// Place the mapping at exactly the address specified in `new_address`.
         #[cfg(target_os = "netbsd")]
         MAP_FIXED;
@@ -312,6 +317,25 @@ libc_enum! {
         #[cfg(apple_targets)]
         #[allow(missing_docs)]
         MADV_CAN_REUSE,
+        /// Reclaim the address range when applicable.
+        #[cfg(linux_android)]
+        MADV_PAGEOUT,
+        /// Deactivate the address range when applicable.
+        #[cfg(linux_android)]
+        MADV_COLD,
+        /// After fork, the adress range is zero filled.
+        #[cfg(linux_android)]
+        MADV_WIPEONFORK,
+        /// Undo `MADV_WIPEONFORK` when it applied.
+        #[cfg(linux_android)]
+        MADV_KEEPONFORK,
+        /// Pre-load the address range for reading to reduce page-fault latency.
+        #[cfg(linux_android)]
+        MADV_POPULATE_READ,
+        /// Pre-fault the address range for writing to reduce page-fault
+        /// latency on subsequent writes.
+        #[cfg(linux_android)]
+        MADV_POPULATE_WRITE,
     }
 }
 

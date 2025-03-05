@@ -265,9 +265,9 @@ impl ForkResult {
 /// # Safety
 ///
 /// In a multithreaded program, only [async-signal-safe] functions like `pause`
-/// and `_exit` may be called by the child (the parent isn't restricted). Note
-/// that memory allocation may **not** be async-signal-safe and thus must be
-/// prevented.
+/// and `_exit` may be called by the child (the parent isn't restricted) until
+/// a call of `execve(2)`. Note that memory allocation may **not** be
+/// async-signal-safe and thus must be prevented.
 ///
 /// Those functions are only a small subset of your operating system's API, so
 /// special care must be taken to only invoke code you can control and audit.
@@ -1577,11 +1577,11 @@ impl LinkatFlags {
 /// # References
 /// See also [linkat(2)](https://pubs.opengroup.org/onlinepubs/9699919799/functions/linkat.html)
 #[cfg(not(target_os = "redox"))] // Redox does not have this yet
-pub fn linkat<Fd1: std::os::fd::AsFd, Fd2: std::os::fd::AsFd, P: ?Sized + NixPath>(
+pub fn linkat<Fd1: std::os::fd::AsFd, Fd2: std::os::fd::AsFd, P1: ?Sized + NixPath, P2: ?Sized + NixPath>(
     olddirfd: Fd1,
-    oldpath: &P,
+    oldpath: &P1,
     newdirfd: Fd2,
-    newpath: &P,
+    newpath: &P2,
     flag: AtFlags,
 ) -> Result<()> {
     use std::os::fd::AsRawFd;
@@ -3732,6 +3732,7 @@ impl User {
     /// let res = User::from_uid(Uid::from_raw(0)).unwrap().unwrap();
     /// assert_eq!(res.name, "root");
     /// ```
+    #[doc(alias("getpwuid", "getpwuid_r"))]
     pub fn from_uid(uid: Uid) -> Result<Option<Self>> {
         // SAFETY: `getpwuid_r` will write to `res` if it initializes the value
         // at `pwd`.
@@ -3755,6 +3756,7 @@ impl User {
     /// let res = User::from_name("root").unwrap().unwrap();
     /// assert_eq!(res.name, "root");
     /// ```
+    #[doc(alias("getpwnam", "getpwnam_r"))]
     pub fn from_name(name: &str) -> Result<Option<Self>> {
         let name = match CString::new(name) {
             Ok(c_str) => c_str,

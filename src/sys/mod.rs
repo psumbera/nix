@@ -1,7 +1,10 @@
 //! Mostly platform-specific functionality
 #[cfg(any(
     freebsdlike,
-    all(target_os = "linux", not(target_env = "uclibc")),
+    all(
+        target_os = "linux",
+        not(any(target_env = "uclibc", target_env = "ohos"))
+    ),
     apple_targets,
     target_os = "netbsd"
 ))]
@@ -31,7 +34,13 @@ feature! {
     pub mod fanotify;
 }
 
-#[cfg(any(bsd, linux_android, target_os = "redox", solarish))]
+#[cfg(any(
+    bsd,
+    linux_android,
+    solarish,
+    target_os = "fuchsia",
+    target_os = "redox",
+))]
 #[cfg(feature = "ioctl")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ioctl")))]
 #[macro_use]

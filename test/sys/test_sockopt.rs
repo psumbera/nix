@@ -249,16 +249,16 @@ fn test_so_type_unknown() {
 }
 
 // The CI doesn't supported getsockopt and setsockopt on emulated processors.
-// It's believed that a QEMU issue, the tests run ok on a fully emulated system.
-// Current CI just run the binary with QEMU but the Kernel remains the same as the host.
+// It's believed to be a QEMU issue; the tests run ok on a fully emulated
+// system.  Current CI just runs the binary with QEMU but the kernel remains the
+// same as the host.
 // So the syscall doesn't work properly unless the kernel is also emulated.
 #[test]
-#[cfg(all(
-    any(target_arch = "x86", target_arch = "x86_64"),
-    any(target_os = "freebsd", target_os = "linux")
-))]
+#[cfg(any(target_os = "freebsd", target_os = "linux"))]
+#[cfg_attr(qemu, ignore)]
 fn test_tcp_congestion() {
     use std::ffi::OsString;
+    use std::os::unix::ffi::OsStrExt;
 
     let fd = socket(
         AddressFamily::Inet,
@@ -269,6 +269,14 @@ fn test_tcp_congestion() {
     .unwrap();
 
     let val = getsockopt(&fd, sockopt::TcpCongestion).unwrap();
+    let bytes = val.as_os_str().as_bytes();
+    for b in bytes.iter() {
+        assert_ne!(
+            *b, 0,
+            "OsString should contain no embedded NULs: {:?}",
+            val
+        );
+    }
     setsockopt(&fd, sockopt::TcpCongestion, &val).unwrap();
 
     setsockopt(
@@ -283,7 +291,7 @@ fn test_tcp_congestion() {
 
 #[test]
 #[cfg(target_os = "freebsd")]
-fn test_tcp_function_blk() {
+fn test_tcp_function_blk_alias() {
     use std::ffi::CStr;
 
     let fd = socket(
@@ -298,8 +306,15 @@ fn test_tcp_function_blk() {
     let name = unsafe { CStr::from_ptr(tfs.function_set_name.as_ptr()) };
     assert!(!name.to_bytes().is_empty());
 
+    let aliastfs = getsockopt(&fd, sockopt::TcpFunctionAlias).unwrap();
+    let aliasname =
+        unsafe { CStr::from_ptr(aliastfs.function_set_name.as_ptr()) };
+    // freebsd default tcp stack has no alias.
+    assert!(aliasname.to_bytes().is_empty());
+
     // We can't know at compile time what options are available.  So just test the setter by a
     // no-op set.
+    // TODO: test if we can load for example BBR tcp stack kernel module.
     setsockopt(&fd, sockopt::TcpFunctionBlk, &tfs).unwrap();
 }
 
@@ -1045,5 +1060,111 @@ fn test_ipv6_recv_traffic_class_opts() {
     );
     setsockopt(&fdd, sockopt::Ipv6RecvTClass, &false).expect(
         "unsetting IPV6_RECVTCLASS on an inet6 datagram socket should succeed",
+    );
+}
+
+#[cfg(apple_targets)]
+#[test]
+fn test_linger_sec() {
+    let fd = socket(
+        AddressFamily::Inet,
+        SockType::Stream,
+        SockFlag::empty(),
+        None,
+    )
+    .unwrap();
+
+    let set_linger = libc::linger {
+        l_onoff: 1,
+        l_linger: 1,
+    };
+    setsockopt(&fd, sockopt::LingerSec, &set_linger).unwrap();
+
+    let get_linger = getsockopt(&fd, sockopt::Linger).unwrap();
+    assert_eq!(get_linger.l_linger, set_linger.l_linger * 100);
+}
+
+/// Users should be able to define their own sockopts.
+mod sockopt_impl {
+    use nix::sys::socket::{
+        getsockopt, setsockopt, socket, AddressFamily, SockFlag, SockProtocol,
+        SockType,
+    };
+
+    sockopt_impl!(KeepAlive, Both, libc::SOL_SOCKET, libc::SO_KEEPALIVE, bool);
+
+    #[test]
+    fn test_so_tcp_keepalive() {
+        let fd = socket(
+            AddressFamily::Inet,
+            SockType::Stream,
+            SockFlag::empty(),
+            SockProtocol::Tcp,
+        )
+        .unwrap();
+        setsockopt(&fd, KeepAlive, &true).unwrap();
+        assert!(getsockopt(&fd, KeepAlive).unwrap());
+    }
+
+    sockopt_impl!(
+        Linger,
+        Both,
+        libc::SOL_SOCKET,
+        libc::SO_LINGER,
+        libc::linger
+    );
+    #[test]
+    fn test_linger() {
+        let fd = socket(
+            AddressFamily::Inet,
+            SockType::Stream,
+            SockFlag::empty(),
+            None,
+        )
+        .unwrap();
+
+        let set_linger = libc::linger {
+            l_onoff: 1,
+            l_linger: 42,
+        };
+        setsockopt(&fd, Linger, &set_linger).unwrap();
+
+        let get_linger = getsockopt(&fd, Linger).unwrap();
+        assert_eq!(get_linger.l_linger, set_linger.l_linger);
+    }
+}
+
+#[cfg(solarish)]
+#[test]
+fn test_exclbind() {
+    use nix::errno::Errno;
+    use nix::sys::socket::{
+        bind, socket, AddressFamily, SockFlag, SockType, SockaddrIn,
+    };
+    use std::net::SocketAddrV4;
+    use std::str::FromStr;
+    let fd1 = socket(
+        AddressFamily::Inet,
+        SockType::Stream,
+        SockFlag::empty(),
+        None,
+    )
+    .unwrap();
+    let addr = SocketAddrV4::from_str("127.0.0.1:8081").unwrap();
+    let excl = true;
+
+    setsockopt(&fd1, sockopt::ExclBind, &excl).unwrap();
+    bind(fd1.as_raw_fd(), &SockaddrIn::from(addr)).unwrap();
+    assert_eq!(getsockopt(&fd1, sockopt::ExclBind), Ok(true));
+    let fd2 = socket(
+        AddressFamily::Inet,
+        SockType::Stream,
+        SockFlag::empty(),
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        bind(fd2.as_raw_fd(), &SockaddrIn::from(addr)),
+        Err(Errno::EADDRINUSE)
     );
 }
