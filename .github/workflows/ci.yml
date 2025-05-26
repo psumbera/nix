@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - master
+      - test-ci
   merge_group:
     types: [checks_requested]
 
